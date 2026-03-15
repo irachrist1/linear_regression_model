@@ -8,33 +8,33 @@ import joblib
 import pandas as pd
 
 
-def interpret_risk(days):
-    if days < 30:
-        return "Low Risk (Active)"
-    if days < 90:
-        return "Medium Risk (Slowing)"
-    if days < 365:
-        return "High Risk (At Risk)"
-    return "Critical (Abandoned)"
+def interpret_performance(score):
+    if score >= 80:
+        return "Distinction (High Performer)"
+    if score >= 60:
+        return "Pass (On Track)"
+    if score >= 40:
+        return "At Risk (Needs Support)"
+    return "High Risk (Likely to Fail)"
 
 
 def load_feature_columns(path):
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def load_truth(path):
     if not path.exists():
         return None
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def main():
     base_dir = Path(__file__).resolve().parent
 
     parser = argparse.ArgumentParser(
-        description="Load the saved best model and predict one model-ready input row."
+        description="Load the saved best model and predict the average assessment score for one student row."
     )
     parser.add_argument(
         "--input-csv",
@@ -44,7 +44,7 @@ def main():
     parser.add_argument(
         "--truth-json",
         default=str(base_dir / "sample_test_truth.json"),
-        help="Optional JSON file containing the actual target value for comparison.",
+        help="Optional JSON file with the actual target value for comparison.",
     )
     args = parser.parse_args()
 
@@ -55,30 +55,31 @@ def main():
     input_path = Path(args.input_csv)
     row = pd.read_csv(input_path)
     if row.shape[0] != 1:
-        raise ValueError(f"{input_path} must contain exactly one row for prediction.")
+        raise ValueError(f"{input_path} must contain exactly one row.")
 
-    missing_columns = [column for column in feature_columns if column not in row.columns]
-    extra_columns = [column for column in row.columns if column not in feature_columns]
-    if missing_columns:
-        raise ValueError(f"Missing required feature columns: {missing_columns}")
-    if extra_columns:
-        row = row.drop(columns=extra_columns)
+    missing = [c for c in feature_columns if c not in row.columns]
+    extra = [c for c in row.columns if c not in feature_columns]
+    if missing:
+        raise ValueError(f"Missing required feature columns: {missing}")
+    if extra:
+        row = row.drop(columns=extra)
 
     row = row[feature_columns]
     prediction = float(model.predict(scaler.transform(row))[0])
 
-    print("=== Saved Model Prediction ===")
-    print(f"Input row        : {input_path.name}")
-    print(f"Predicted value  : {prediction:.1f} days since last push")
-    print(f"Risk category    : {interpret_risk(prediction)}")
+    print("=== Student Performance Prediction ===")
+    print(f"Input row          : {input_path.name}")
+    print(f"Predicted score    : {prediction:.1f} / 100")
+    print(f"Performance level  : {interpret_performance(prediction)}")
 
     truth = load_truth(Path(args.truth_json))
-    if truth is not None and "actual_days_since_last_push" in truth:
-        actual = float(truth["actual_days_since_last_push"])
-        print(f"Actual value     : {actual:.1f} days since last push")
-        print(f"Absolute error   : {abs(actual - prediction):.1f} days")
+    if truth is not None and "actual_avg_score" in truth:
+        actual = float(truth["actual_avg_score"])
+        print(f"Actual score       : {actual:.1f} / 100")
+        print(f"Absolute error     : {abs(actual - prediction):.1f} points")
+        print(f"Actual level       : {interpret_performance(actual)}")
         if "model_name" in truth:
-            print(f"Saved best model : {truth['model_name']}")
+            print(f"Saved best model   : {truth['model_name']}")
 
 
 if __name__ == "__main__":

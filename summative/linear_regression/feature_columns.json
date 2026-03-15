@@ -1,14 +1,12 @@
 [
-  "log_stars_count",
-  "log_forks_count",
-  "log_watchers",
-  "log_open_issues",
-  "log_pull_requests",
-  "log_contributors",
-  "log_size",
-  "has_wiki",
-  "has_projects",
-  "is_forked",
-  "language",
-  "created_year"
+  "gender",
+  "region",
+  "highest_education",
+  "imd_band",
+  "age_band",
+  "num_of_prev_attempts",
+  "studied_credits",
+  "disability",
+  "date_registration",
+  "log_total_clicks"
 ]

@@ -1,5 +1,5 @@
 {
-  "model_name": "Random Forest",
-  "actual_days_since_last_push": 139.6,
+  "model_name": "Linear Regression",
+  "actual_avg_score": 65.28571428571429,
   "sample_index": 0
 }
