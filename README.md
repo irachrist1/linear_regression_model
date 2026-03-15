@@ -2,7 +2,9 @@
 
 **Mission:** Expand access to personalized, technology-enabled learning for students in rural and underserved communities by strengthening the digital tools that support their learning journey.
 **Problem:** Many affordable education platforms depend on open-source software, and when those repositories become inactive, students and schools lose reliable systems for continuous learning.
+
 **Dataset:** [GitHub Repositories Dataset](https://www.kaggle.com/datasets/nikhil25803/github-dataset) from Kaggle with 10,000+ repositories and features like stars, forks, issues, size, language, and activity timestamps.
+
 **Task 2 Prep:** `summative/linear_regression/predict_best_model.py` loads the saved best model and predicts one held-out test row as an early warning signal for tool sustainability.
 
 ## Repository Structure
