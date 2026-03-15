@@ -1,0 +1,14 @@
+[
+  "log_stars_count",
+  "log_forks_count",
+  "log_watchers",
+  "log_open_issues",
+  "log_pull_requests",
+  "log_contributors",
+  "log_size",
+  "has_wiki",
+  "has_projects",
+  "is_forked",
+  "language",
+  "created_year"
+]
