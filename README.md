@@ -1,8 +1,11 @@
 # Student Learning Outcome Predictor
 
 **Mission:** Expand access to personalized, technology-enabled learning for students in rural and underserved communities.
+
 **Problem:** Students from disadvantaged backgrounds often fall behind without early support. By predicting a student's average assessment score from their demographics and learning engagement, educators can identify struggling learners early and deliver timely, personalized intervention.
+
 **Dataset:** [Open University Learning Analytics Dataset (OULAD)](https://www.kaggle.com/datasets/anlgrbz/student-demographics-online-education-dataoulad) — anonymized records for ~32,000 students across 7 courses, including demographics (deprivation index, disability, region), registration timing, Virtual Learning Environment click activity, and assessment scores.
+
 **Task 2 Prep:** `summative/linear_regression/predict_best_model.py` loads the saved best model and predicts the average assessment score for one held-out student row.
 
 ## Repository Structure
