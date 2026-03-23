@@ -69,12 +69,11 @@ class PredictionService {
             headers: {'Content-Type': 'application/json'},
             body: body,
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 65));
     } on TimeoutException {
       throw Exception(
-        'The API took too long to respond. Start the FastAPI server in summative/API '
-        'with "uvicorn prediction:app --reload", or run the app with '
-        '--dart-define=API_BASE_URL=https://your-deployed-api.',
+        'The server is taking longer than expected to respond. '
+        'It may be waking up from sleep — please try again in a moment.',
       );
     } catch (error) {
       final message = error.toString();
@@ -82,9 +81,8 @@ class PredictionService {
           message.contains('Failed host lookup') ||
           message.contains('SocketException')) {
         throw Exception(
-          'The API is not running at $_baseUrl. Start the FastAPI server in summative/API '
-          'with "uvicorn prediction:app --reload", or run the app with '
-          '--dart-define=API_BASE_URL=https://your-deployed-api.',
+          'Could not reach the prediction server. '
+          'Please check your internet connection and try again.',
         );
       }
       rethrow;
