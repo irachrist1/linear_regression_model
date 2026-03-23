@@ -43,7 +43,7 @@ Download the OULAD dataset from Kaggle and place the following CSV files inside 
 
 ## Video Demo
 
-> **YouTube:** _Add link here after recording_
+> **YouTube:** https://youtu.be/cbOg4i9uV28
 
 ## Running the Mobile App
 
