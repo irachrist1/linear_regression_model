@@ -31,10 +31,7 @@ class PredictionService {
   static String get _baseUrl {
     const configured = String.fromEnvironment('API_BASE_URL');
     if (configured.isNotEmpty) return configured;
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000';
-    }
-    return 'http://127.0.0.1:8000';
+    return 'https://linear-regression-model-83q9.onrender.com';
   }
 
   static String get baseUrl => _baseUrl;

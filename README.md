@@ -38,8 +38,8 @@ Download the OULAD dataset from Kaggle and place the following CSV files inside 
 
 ## API Endpoint
 
-> **Public URL:** _Add Render deployment URL here after deploying_
-> Swagger UI: `<url>/docs`
+> **Public URL:** https://linear-regression-model-83q9.onrender.com
+> Swagger UI: https://linear-regression-model-83q9.onrender.com/docs
 
 ## Video Demo
 
