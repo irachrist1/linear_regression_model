@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../services/prediction_service.dart';
@@ -10,7 +11,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _attemptsController = TextEditingController(text: '0');
   final _creditsController = TextEditingController(text: '60');
@@ -28,12 +29,37 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _errorText;
   PredictionResult? _prediction;
 
+  late AnimationController _scoreAnimController;
+  late Animation<double> _scoreAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _scoreAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _scoreAnim = Tween<double>(begin: 0, end: 0).animate(
+      CurvedAnimation(parent: _scoreAnimController, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _attemptsController.dispose();
+    _creditsController.dispose();
+    _registrationController.dispose();
+    _clicksController.dispose();
+    _scoreAnimController.dispose();
+    super.dispose();
+  }
+
   Future<void> _predict() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() {
       _loading = true;
       _errorText = null;
+      _prediction = null;
     });
 
     try {
@@ -51,52 +77,50 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       if (!mounted) return;
+
+      _scoreAnim = Tween<double>(
+        begin: 0,
+        end: result.predictedAvgScore / 100,
+      ).animate(CurvedAnimation(parent: _scoreAnimController, curve: Curves.easeOutCubic));
+      _scoreAnimController.forward(from: 0);
+
       setState(() => _prediction = result);
     } catch (error) {
       if (!mounted) return;
       setState(() => _errorText = error.toString().replaceFirst('Exception: ', ''));
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   String? _validateInt(String? value, {required int min, required int max}) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Required';
-    }
+    if (value == null || value.trim().isEmpty) return 'Required';
     final parsed = int.tryParse(value.trim());
-    if (parsed == null) {
-      return 'Enter a whole number';
-    }
-    if (parsed < min || parsed > max) {
-      return 'Use $min to $max';
-    }
+    if (parsed == null) return 'Whole number';
+    if (parsed < min || parsed > max) return '$min – $max';
     return null;
   }
 
   String? _validateDouble(String? value, {required double min, required double max}) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Required';
-    }
+    if (value == null || value.trim().isEmpty) return 'Required';
     final parsed = double.tryParse(value.trim());
-    if (parsed == null) {
-      return 'Enter a number';
-    }
-    if (parsed < min || parsed > max) {
-      return 'Use ${min.toInt()} to ${max.toInt()}';
-    }
+    if (parsed == null) return 'Number';
+    if (parsed < min || parsed > max) return '${min.toInt()} – ${max.toInt()}';
     return null;
   }
 
-  @override
-  void dispose() {
-    _attemptsController.dispose();
-    _creditsController.dispose();
-    _registrationController.dispose();
-    _clicksController.dispose();
-    super.dispose();
+  Color _bandColor(String band) {
+    if (band.startsWith('Distinction')) return AppTheme.riskLow;
+    if (band.startsWith('Pass')) return AppTheme.riskMedium;
+    if (band.startsWith('At Risk')) return AppTheme.riskHigh;
+    return AppTheme.riskCritical;
+  }
+
+  String _bandAdvice(String band) {
+    if (band.startsWith('Distinction')) return 'Student is on track for excellent results.';
+    if (band.startsWith('Pass')) return 'Student is progressing well. Monitor engagement.';
+    if (band.startsWith('At Risk')) return 'Consider reaching out with early support resources.';
+    return 'Immediate intervention recommended for this student.';
   }
 
   @override
@@ -105,93 +129,66 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppTheme.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF133A63), Color(0xFF1B6CA8)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                _buildHeader(),
+                const SizedBox(height: 28),
+                _buildSectionLabel('STUDENT BACKGROUND'),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _CompactDropdown(
+                        label: 'Gender',
+                        value: _gender,
+                        items: const ['M', 'F'],
+                        onChanged: (v) => setState(() => _gender = v!),
+                      ),
                     ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x33000000),
-                        blurRadius: 24,
-                        offset: Offset(0, 12),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _CompactDropdown(
+                        label: 'Age Band',
+                        value: _ageBand,
+                        items: const ['0-35', '35-55', '55<='],
+                        onChanged: (v) => setState(() => _ageBand = v!),
                       ),
-                    ],
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Student Predictor',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                        "Enter a student's demographics and learning engagement to predict their average assessment score and flag those who may need early support.",
-                        style: TextStyle(
-                          color: Color(0xFFE3EEF8),
-                          fontSize: 14,
-                          height: 1.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const _InfoCard(
-                  title: 'Mission',
-                  description:
-                      'Use demographics and learning engagement to identify students who may need support early.',
-                ),
-                const SizedBox(height: 18),
-                const _SectionTitle('Student Details'),
-                const SizedBox(height: 12),
-                _DropdownField(
-                  label: 'Gender',
-                  initialValue: _gender,
-                  items: const ['M', 'F'],
-                  onChanged: (value) => setState(() => _gender = value!),
-                ),
-                const SizedBox(height: 12),
-                _DropdownField(
-                  label: 'Region',
-                  initialValue: _region,
-                  items: const [
-                    'East Anglian Region',
-                    'East Midlands Region',
-                    'Ireland',
-                    'London Region',
-                    'North Region',
-                    'North Western Region',
-                    'Scotland',
-                    'South East Region',
-                    'South Region',
-                    'South West Region',
-                    'Wales',
-                    'West Midlands Region',
-                    'Yorkshire Region',
+                    ),
                   ],
-                  onChanged: (value) => setState(() => _region = value!),
                 ),
                 const SizedBox(height: 12),
-                _DropdownField(
+                Row(
+                  children: [
+                    Expanded(
+                      child: _CompactDropdown(
+                        label: 'Disability',
+                        value: _disability,
+                        items: const ['N', 'Y'],
+                        onChanged: (v) => setState(() => _disability = v!),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _CompactDropdown(
+                        label: 'IMD Band',
+                        value: _imdBand,
+                        items: const [
+                          '0-10%', '10-20', '20-30%', '30-40%', '40-50%',
+                          '50-60%', '60-70%', '70-80%', '80-90%', '90-100%',
+                        ],
+                        onChanged: (v) => setState(() => _imdBand = v!),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _CompactDropdown(
                   label: 'Highest Education',
-                  initialValue: _highestEducation,
+                  value: _highestEducation,
                   items: const [
                     'No Formal quals',
                     'Lower Than A Level',
@@ -199,81 +196,79 @@ class _HomeScreenState extends State<HomeScreen> {
                     'HE Qualification',
                     'Post Graduate Qualification',
                   ],
-                  onChanged: (value) => setState(() => _highestEducation = value!),
+                  onChanged: (v) => setState(() => _highestEducation = v!),
                 ),
                 const SizedBox(height: 12),
-                _DropdownField(
-                  label: 'IMD Band',
-                  initialValue: _imdBand,
+                _CompactDropdown(
+                  label: 'Region',
+                  value: _region,
                   items: const [
-                    '0-10%',
-                    '10-20',
-                    '20-30%',
-                    '30-40%',
-                    '40-50%',
-                    '50-60%',
-                    '60-70%',
-                    '70-80%',
-                    '80-90%',
-                    '90-100%',
+                    'East Anglian Region', 'East Midlands Region', 'Ireland',
+                    'London Region', 'North Region', 'North Western Region',
+                    'Scotland', 'South East Region', 'South Region',
+                    'South West Region', 'Wales', 'West Midlands Region',
+                    'Yorkshire Region',
                   ],
-                  onChanged: (value) => setState(() => _imdBand = value!),
+                  onChanged: (v) => setState(() => _region = v!),
+                ),
+                const SizedBox(height: 28),
+                _buildSectionLabel('LEARNING ACTIVITY'),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _CompactNumberField(
+                        label: 'Prev. Attempts',
+                        hint: '0 – 6',
+                        controller: _attemptsController,
+                        validator: (v) => _validateInt(v, min: 0, max: 6),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _CompactNumberField(
+                        label: 'Credits',
+                        hint: '30 – 630',
+                        controller: _creditsController,
+                        validator: (v) => _validateInt(v, min: 30, max: 630),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
-                _DropdownField(
-                  label: 'Age Band',
-                  initialValue: _ageBand,
-                  items: const ['0-35', '35-55', '55<='],
-                  onChanged: (value) => setState(() => _ageBand = value!),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _CompactNumberField(
+                        label: 'Reg. Date (days)',
+                        hint: '-311 – 167',
+                        controller: _registrationController,
+                        validator: (v) => _validateDouble(v, min: -311, max: 167),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _CompactNumberField(
+                        label: 'VLE Clicks',
+                        hint: '0 – 24139',
+                        controller: _clicksController,
+                        validator: (v) => _validateDouble(v, min: 0, max: 24139),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                _DropdownField(
-                  label: 'Disability',
-                  initialValue: _disability,
-                  items: const ['N', 'Y'],
-                  onChanged: (value) => setState(() => _disability = value!),
-                ),
-                const SizedBox(height: 18),
-                const _SectionTitle('Learning Activity'),
-                const SizedBox(height: 12),
-                _NumberField(
-                  label: 'Previous Attempts',
-                  controller: _attemptsController,
-                  helperText: 'Allowed range: 0 to 6',
-                  validator: (value) => _validateInt(value, min: 0, max: 6),
-                ),
-                const SizedBox(height: 12),
-                _NumberField(
-                  label: 'Studied Credits',
-                  controller: _creditsController,
-                  helperText: 'Allowed range: 30 to 630',
-                  validator: (value) => _validateInt(value, min: 30, max: 630),
-                ),
-                const SizedBox(height: 12),
-                _NumberField(
-                  label: 'Registration Date',
-                  controller: _registrationController,
-                  helperText: 'Allowed range: -311 to 167',
-                  validator: (value) => _validateDouble(value, min: -311, max: 167),
-                ),
-                const SizedBox(height: 12),
-                _NumberField(
-                  label: 'Total VLE Clicks',
-                  controller: _clicksController,
-                  helperText: 'Allowed range: 0 to 24139',
-                  validator: (value) => _validateDouble(value, min: 0, max: 24139),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 28),
                 SizedBox(
                   width: double.infinity,
-                  height: 54,
+                  height: 52,
                   child: FilledButton(
                     onPressed: _loading ? null : _predict,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppTheme.accent,
                       foregroundColor: Colors.white,
+                      disabledBackgroundColor: AppTheme.accent.withAlpha(100),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     child: _loading
@@ -287,24 +282,22 @@ class _HomeScreenState extends State<HomeScreen> {
                           )
                         : const Text(
                             'Predict',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                   ),
                 ),
                 if (_errorText != null) ...[
                   const SizedBox(height: 16),
-                  _MessageCard(
-                    title: 'Request Error',
-                    message: _errorText!,
-                    color: const Color(0xFFFF6B35),
-                  ),
+                  _ErrorBanner(message: _errorText!),
                 ],
                 if (_prediction != null) ...[
-                  const SizedBox(height: 18),
-                  _ResultCard(result: _prediction!),
+                  const SizedBox(height: 28),
+                  _ResultCard(
+                    result: _prediction!,
+                    scoreAnim: _scoreAnim,
+                    bandColor: _bandColor(_prediction!.performanceBand),
+                    advice: _bandAdvice(_prediction!.performanceBand),
+                  ),
                 ],
               ],
             ),
@@ -313,80 +306,71 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
 
-class _SectionTitle extends StatelessWidget {
-  final String label;
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withAlpha(30),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.school_rounded, color: AppTheme.accent, size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'EduSense',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Predict a student\'s assessment score from demographics\nand engagement to flag who needs early support.',
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 13,
+            height: 1.6,
+          ),
+        ),
+      ],
+    );
+  }
 
-  const _SectionTitle(this.label);
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildSectionLabel(String label) {
     return Text(
       label,
       style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-        color: AppTheme.textPrimary,
+        color: AppTheme.textTertiary,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1.2,
       ),
     );
   }
 }
 
-class _InfoCard extends StatelessWidget {
-  final String title;
-  final String description;
+// ─── Compact dropdown ────────────────────────────────────────────────────────
 
-  const _InfoCard({
-    required this.title,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            description,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 14,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DropdownField extends StatelessWidget {
+class _CompactDropdown extends StatelessWidget {
   final String label;
-  final String initialValue;
+  final String value;
   final List<String> items;
   final ValueChanged<String?> onChanged;
 
-  const _DropdownField({
+  const _CompactDropdown({
     required this.label,
-    required this.initialValue,
+    required this.value,
     required this.items,
     required this.onChanged,
   });
@@ -394,35 +378,36 @@ class _DropdownField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      initialValue: initialValue,
+      value: value,
       isExpanded: true,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(
+        labelText: label,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
       dropdownColor: AppTheme.surfaceElevated,
+      style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
       items: items
-          .map(
-            (item) => DropdownMenuItem<String>(
-              value: item,
-              child: Text(
-                item,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          )
+          .map((item) => DropdownMenuItem(
+                value: item,
+                child: Text(item, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
+              ))
           .toList(),
       onChanged: onChanged,
     );
   }
 }
 
-class _NumberField extends StatelessWidget {
+// ─── Compact number field ─────────────────────────────────────────────────────
+
+class _CompactNumberField extends StatelessWidget {
   final String label;
-  final String helperText;
+  final String hint;
   final TextEditingController controller;
   final String? Function(String?) validator;
 
-  const _NumberField({
+  const _CompactNumberField({
     required this.label,
-    required this.helperText,
+    required this.hint,
     required this.controller,
     required this.validator,
   });
@@ -433,54 +418,42 @@ class _NumberField extends StatelessWidget {
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
       validator: validator,
-      style: const TextStyle(color: AppTheme.textPrimary),
+      style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
       decoration: InputDecoration(
         labelText: label,
-        helperText: helperText,
+        hintText: hint,
+        hintStyle: const TextStyle(color: AppTheme.textTertiary, fontSize: 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
     );
   }
 }
 
-class _MessageCard extends StatelessWidget {
-  final String title;
-  final String message;
-  final Color color;
+// ─── Error banner ─────────────────────────────────────────────────────────────
 
-  const _MessageCard({
-    required this.title,
-    required this.message,
-    required this.color,
-  });
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  const _ErrorBanner({required this.message});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withAlpha(180)),
+        color: const Color(0xFF2A1A1A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.riskCritical.withAlpha(120)),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: color,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 14,
-              height: 1.5,
+          const Icon(Icons.error_outline_rounded, color: AppTheme.riskCritical, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.5),
             ),
           ),
         ],
@@ -489,110 +462,172 @@ class _MessageCard extends StatelessWidget {
   }
 }
 
-Color _bandColor(String band) {
-  if (band.startsWith('Distinction')) return AppTheme.riskLow;
-  if (band.startsWith('Pass')) return AppTheme.riskMedium;
-  if (band.startsWith('At Risk')) return AppTheme.riskHigh;
-  return AppTheme.riskCritical;
+// ─── Score arc painter ────────────────────────────────────────────────────────
+
+class _ScoreArcPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  _ScoreArcPainter({required this.progress, required this.color}) : super();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 8;
+    const startAngle = math.pi * 0.75;
+    const sweepTotal = math.pi * 1.5;
+
+    // Track
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepTotal,
+      false,
+      Paint()
+        ..color = const Color(0xFF2A2A38)
+        ..strokeWidth = 10
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Progress
+    if (progress > 0) {
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepTotal * progress,
+        false,
+        Paint()
+          ..color = color
+          ..strokeWidth = 10
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ScoreArcPainter old) =>
+      old.progress != progress || old.color != color;
 }
+
+// ─── Result card ──────────────────────────────────────────────────────────────
 
 class _ResultCard extends StatelessWidget {
   final PredictionResult result;
+  final Animation<double> scoreAnim;
+  final Color bandColor;
+  final String advice;
 
-  const _ResultCard({required this.result});
+  const _ResultCard({
+    required this.result,
+    required this.scoreAnim,
+    required this.bandColor,
+    required this.advice,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceElevated,
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppTheme.border),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Prediction Result',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+          // Score dial
+          AnimatedBuilder(
+            animation: scoreAnim,
+            builder: (context, _) {
+              return SizedBox(
+                width: 160,
+                height: 160,
+                child: CustomPaint(
+                  painter: _ScoreArcPainter(
+                    progress: scoreAnim.value,
+                    color: bandColor,
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          (scoreAnim.value * 100).toStringAsFixed(1),
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -1,
+                          ),
+                        ),
+                        const Text(
+                          'out of 100',
+                          style: TextStyle(
+                            color: AppTheme.textTertiary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          // Band pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: bandColor.withAlpha(30),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: bandColor.withAlpha(80)),
+            ),
+            child: Text(
+              result.performanceBand,
+              style: TextStyle(
+                color: bandColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppTheme.background,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${result.predictedAvgScore.toStringAsFixed(2)} / 100',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  result.performanceBand,
-                  style: TextStyle(
-                    color: _bandColor(result.performanceBand),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Model: ${result.modelName}',
+          // Divider
+          Divider(color: AppTheme.border, height: 1),
+          const SizedBox(height: 14),
+          // Advice row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded, color: bandColor, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  advice,
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 13,
+                    height: 1.5,
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            'Engineered Features',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: result.engineeredFeatures.entries
-                .map(
-                  (entry) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.background,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.border),
-                    ),
-                    child: Text(
-                      '${entry.key}: ${entry.value}',
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
+          // Model label
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              'Model: ${result.modelName}',
+              style: const TextStyle(
+                color: AppTheme.textTertiary,
+                fontSize: 11,
+              ),
+            ),
           ),
         ],
       ),
