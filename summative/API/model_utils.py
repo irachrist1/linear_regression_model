@@ -56,8 +56,8 @@ HIGHEST_EDUCATION_MAP = {
 
 IMD_BAND_MAP = {
     "0-10%": 1,
-    # The saved notebook model used a slightly inconsistent label here.
-    # We keep the encoding aligned with the trained artifact for inference parity.
+    # the notebook had this label without the % so keeping it the same
+    # so the encoding matches what the model was actually trained on
     "10-20": 5,
     "20-30%": 3,
     "30-40%": 4,
