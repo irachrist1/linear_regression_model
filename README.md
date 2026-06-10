@@ -1,69 +1,38 @@
-# Student Learning Outcome Predictor
+# linear_regression_model
 
-**Mission:** Expand access to personalized, technology-enabled learning for students in rural and underserved communities.
+Predict student learning outcomes for early intervention in underserved communities — OULAD-based ML pipeline with FastAPI and Flutter.
 
-**Problem:** Students from disadvantaged backgrounds often fall behind without early support. By predicting a student's average assessment score from their demographics and learning engagement, educators can identify struggling learners early and deliver timely, personalized intervention.
+## The problem
 
-**Dataset:** [Open University Learning Analytics Dataset (OULAD)](https://www.kaggle.com/datasets/anlgrbz/student-demographics-online-education-dataoulad) — anonymized records for ~32,000 students across 7 courses, including demographics (deprivation index, disability, region), registration timing, Virtual Learning Environment click activity, and assessment scores.
+Educators lack early signals on which students will struggle before it's too late to intervene.
 
-**Task 2 Prep:** `summative/linear_regression/predict_best_model.py` loads the saved best model and predicts the average assessment score for one held-out student row.
+Course click data and demographics exist in OULAD — but turning them into actionable predictions requires a full pipeline, not a notebook that never ships.
 
-## Repository Structure
+## What it does
+
+Train regressors on OULAD, serve predictions via FastAPI, consume them in a Flutter mobile app. API live on Render.
 
 ```
-linear_regression_model/
-├── summative/
-│   ├── linear_regression/       ← Summative One notebook, dataset, plots, and saved model artifacts
-│   ├── API/                     ← Summative Two FastAPI service for prediction, metadata, and retraining
-│   └── FlutterApp/              ← Flutter mobile app for student score prediction with API integration
-└── README.md
+POST /predict → predicted outcome + confidence metadata
+GET /health → service status
 ```
 
-## Data Setup
-
-Download the OULAD dataset from Kaggle and place the following CSV files inside `summative/linear_regression/` before running the notebook:
-
-- `studentInfo.csv`
-- `studentAssessment.csv`
-- `assessments.csv`
-- `studentVle.csv`
-- `studentRegistration.csv`
-
-## Main Files
-
-- `summative/linear_regression/multivariate.ipynb` — full regression workflow: data merging, visualizations, feature engineering, model training, comparison, and saving
-- `summative/linear_regression/predict_best_model.py` — loads the saved best model and predicts one held-out student row
-- `summative/API/prediction.py` — FastAPI app with `/predict`, `/metadata`, `/health`, and retraining endpoints
-- `summative/API/model_utils.py` — reusable preprocessing and inference logic that mirrors the notebook transformations
-
-## API Endpoint
-
-> **Public URL:** https://linear-regression-model-83q9.onrender.com
-> Swagger UI: https://linear-regression-model-83q9.onrender.com/docs
-
-## Video Demo
-
-> **YouTube:** https://youtu.be/cbOg4i9uV28
-
-## Running the Mobile App
+## Install
 
 ```bash
-# Install Flutter dependencies
-cd summative/FlutterApp
-flutter pub get
-
-# Run on a connected device or emulator
-flutter run
-
-# To point at the deployed API instead of localhost:
-flutter run --dart-define=API_BASE_URL=https://your-render-url.onrender.com
+git clone https://github.com/irachrist1/linear_regression_model.git && cd linear_regression_model
+# Download OULAD CSVs per summative/README
+jupyter notebook multivariate.ipynb
+cd summative/API && uvicorn main:app --reload
+cd ../FlutterApp && flutter run
 ```
 
-## Running the API Locally
+## How it works
 
-```bash
-cd summative/API
-pip install -r requirements.txt
-uvicorn prediction:app --reload
-# Visit http://127.0.0.1:8000/docs for Swagger UI
-```
+- **OULAD merge pipeline.** Notebook joins demographics + VLE click streams into model-ready features.
+- **Saved best model.** `predict_best_model.py` loads the winning regressor — reproducible inference, not retrain-on-request.
+- **FastAPI service.** `/predict`, `/metadata`, `/health` endpoints — Flutter and other clients share one contract.
+- **Flutter mobile predictor.** Calls deployed Render API — educators get predictions on device, not in a terminal.
+- **Capstone architecture.** Notebook for exploration, API for serving, app for delivery — three layers, one problem.
+
+Built by [Christian Tonny](https://github.com/irachrist1)
